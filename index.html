@@ -1,2 +1,243 @@
-<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>단추를 다는 손 · 시험판</title>
-<body style="font-family:sans-serif;padding:2rem"><p>단추를 다는 손 · 시험판 준비 중</p></body>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>단추를 다는 손 · 시험판 01</title>
+<style>
+  :root { --blue:#1d3fa8; --deep:#10235f; --ivory:#f3ecdd; --ink:#2a2620; --thread:#e0283f; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; font-family:-apple-system,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  body { overflow:hidden; }
+  .room { position:fixed; inset:0; display:none; flex-direction:column; align-items:center; }
+  .room.on { display:flex; }
+  #hall { background:radial-gradient(circle at 50% 18%, #3a63d8 0, var(--blue) 38%, var(--deep) 100%); color:#eaf0ff; }
+  #canyon { background:var(--ivory); color:var(--ink); }
+  .top { width:100%; max-width:560px; padding:max(16px,env(safe-area-inset-top)) 20px 0; display:flex; justify-content:space-between; align-items:baseline; }
+  .top h1 { font-size:15px; font-weight:500; letter-spacing:.08em; margin:0; }
+  .top small { font-size:11px; opacity:.7; }
+  .hint { font-size:13px; opacity:.85; margin:10px 20px 0; text-align:center; line-height:1.6; }
+  .beakers { display:flex; gap:12px; margin:16px 0 8px; }
+  .beaker { width:38px; height:50px; border:1.5px solid rgba(255,255,255,.75); border-top:none; border-radius:0 0 12px 12px; position:relative; cursor:pointer; background:rgba(255,255,255,.08); }
+  .beaker::after { content:""; position:absolute; left:3px; right:3px; bottom:3px; height:58%; border-radius:0 0 9px 9px; background:var(--c); opacity:.9; }
+  .beaker.sel { transform:translateY(-6px); box-shadow:0 8px 16px rgba(0,0,0,.25); }
+  .stage { position:relative; flex:1; width:100%; display:flex; align-items:center; justify-content:center; min-height:0; }
+  canvas#pad { touch-action:none; border-radius:50%; background:rgba(255,255,255,.14); box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5); transition:transform 1.2s cubic-bezier(.6,0,.3,1), filter 1.2s; }
+  canvas#pad.baked { transform:scale(.42) rotate(-8deg); filter:saturate(1.3) drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+  .row { display:flex; gap:10px; margin:12px 0 max(18px,env(safe-area-inset-bottom)); flex-wrap:wrap; justify-content:center; padding:0 16px; }
+  button.b { font:inherit; font-size:14px; padding:11px 18px; border-radius:999px; border:1.5px solid currentColor; background:transparent; color:inherit; cursor:pointer; }
+  button.b.fill { background:#fff; color:var(--deep); border-color:#fff; }
+  #canyon button.b.fill { background:var(--ink); color:var(--ivory); border-color:var(--ink); }
+  button.b:disabled { opacity:.35; }
+  #carry { position:fixed; right:14px; bottom:calc(14px + env(safe-area-inset-bottom)); width:58px; height:58px; display:none; z-index:5; }
+  #carry.on { display:block; }
+  body.inCanyon #carry { top:calc(58px + env(safe-area-inset-top)); bottom:auto; }
+  body.inCanyon #carry::before { top:auto; bottom:-26px; }
+  #carry::before { content:""; position:absolute; left:50%; top:-26px; width:1.5px; height:30px; background:var(--thread); }
+  .cloth { width:100%; flex:1; overflow-x:auto; overflow-y:hidden; position:relative; -webkit-overflow-scrolling:touch; }
+  .strip { position:relative; height:100%; min-width:100%; background:repeating-linear-gradient(0deg, rgba(120,100,70,.06) 0 2px, transparent 2px 5px), repeating-linear-gradient(90deg, rgba(120,100,70,.05) 0 2px, transparent 2px 6px), #efe6d2; }
+  .strip svg { position:absolute; inset:0; pointer-events:none; }
+  .slot { position:absolute; top:50%; transform:translate(-50%,-50%); text-align:center; width:110px; }
+  .slot canvas { width:64px; height:64px; display:block; margin:0 auto 6px; filter:drop-shadow(0 4px 6px rgba(60,40,20,.25)); }
+  .slot .nm { font-size:12px; }
+  .slot .tg { font-size:11px; opacity:.7; margin-top:2px; line-height:1.4; word-break:keep-all; }
+  .slot.mine .nm { font-weight:600; }
+  .slot.orig .nm { font-style:italic; }
+  .form { width:100%; max-width:560px; padding:12px 20px 0; display:none; }
+  .form.on { display:block; }
+  .form input { width:100%; font:inherit; font-size:15px; padding:10px 12px; border:1px solid rgba(42,38,32,.3); border-radius:10px; background:#fffaf0; margin-bottom:8px; }
+  .lead { font-size:14px; text-align:center; margin:10px 20px 0; line-height:1.7; }
+  .status { font-size:12px; opacity:.65; text-align:center; min-height:1.5em; margin-top:4px; }
+  .dialog { position:fixed; inset:0; background:rgba(10,20,50,.55); display:none; align-items:center; justify-content:center; z-index:9; }
+  .dialog.on { display:flex; }
+  .dialog .box { background:#fff; color:var(--ink); border-radius:16px; padding:22px; width:min(86vw,360px); text-align:center; line-height:1.7; font-size:14px; }
+  .dialog .row { margin-bottom:0; }
+</style>
+</head>
+<body>
+
+<section id="hall" class="room on">
+  <div class="top"><h1>연구실 · 색실 작업대</h1><small>시험판 01</small></div>
+  <p class="hint" id="hallHint">비커에서 색실을 골라, 손가락으로 단추를 그려요.</p>
+  <div class="beakers" id="beakers"></div>
+  <div class="stage"><canvas id="pad"></canvas></div>
+  <div class="row" id="drawRow">
+    <button class="b" id="undo">한 획 되돌리기</button>
+    <button class="b" id="clear">다시 그리기</button>
+    <button class="b fill" id="bake" disabled>굽기</button>
+  </div>
+  <div class="row" id="goRow"><button class="b fill" id="go">기억의 협곡으로</button></div>
+</section>
+
+<section id="canyon" class="room">
+  <div class="top"><h1>기억의 협곡 · 시험 천</h1><small id="count"></small></div>
+  <p class="lead" id="canyonLead">누군가의 손이 이어갑니다. 나의 손으로 마무리합니다.</p>
+  <div class="cloth" id="cloth"><div class="strip" id="strip"><svg id="threads"></svg></div></div>
+  <div class="form" id="form">
+    <input id="nick" maxlength="20" placeholder="닉네임 (20자까지)">
+    <input id="tag" maxlength="80" placeholder="다음 사람에게 남기는 한 줄 (비워도 돼요)">
+    <div class="row">
+      <button class="b" id="knot">매듭짓기</button>
+      <button class="b fill" id="cont">이어두기</button>
+    </div>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="row"><button class="b" id="back">연구실로 돌아가기</button><button class="b" id="reload">새로 불러오기</button></div>
+</section>
+
+<canvas id="carry" width="116" height="116" title="들고 있는 단추"></canvas>
+
+<div class="dialog" id="gate"><div class="box">
+  <p>기억의 협곡으로 넘어갑니다.<br>단추 없이도 둘러볼 수 있어요.<br>그래도 가시겠어요?</p>
+  <div class="row"><button class="b" id="gateNo">단추 만들러 가기</button><button class="b fill" id="gateYes">둘러보러 가기</button></div>
+</div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const sb = createClient('https://vfhhvhpebuwtodqrmrvt.supabase.co', 'sb_publishable_Oo_lhwuL3z9mx2df91fpFQ_33t-5PAY');
+
+const COLORS = ['#e0283f', '#f0b429', '#4fd6c4', '#ff6fa8', '#2f6fe0', '#2d2a26'];
+let color = COLORS[0];
+let strokes = [];          // 관객이 실제로 그은 획: { c, w, p:[[x,y,ms],...] } (x,y는 0~1)
+let mine = null;           // 구운 단추 { strokes, made }
+const t0 = performance.now();
+
+/* ---------- 단추 그리기 (공용) ---------- */
+function drawButton(ctx, data, S, opt = {}) {
+  ctx.clearRect(0, 0, S, S);
+  const r = S / 2;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(r, r, r - 1, 0, Math.PI * 2);
+  ctx.fillStyle = opt.blank ? 'rgba(255,255,255,0)' : '#fbf6ea'; ctx.fill();
+  ctx.clip();
+  for (const s of data) {
+    if (s.p.length < 1) continue;
+    const w = s.w * S;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const path = () => { ctx.beginPath(); ctx.moveTo(s.p[0][0] * S, s.p[0][1] * S); for (const q of s.p) ctx.lineTo(q[0] * S, q[1] * S); if (s.p.length === 1) ctx.lineTo(s.p[0][0] * S + .1, s.p[0][1] * S); };
+    path(); ctx.strokeStyle = s.c; ctx.lineWidth = w; ctx.stroke();                        // 실 몸
+    path(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = w * .28; ctx.setLineDash([w * .9, w * .7]); ctx.stroke(); ctx.setLineDash([]); // 꼬인 결
+  }
+  ctx.restore();
+  if (opt.holes) {           // 단추 구멍 둘
+    for (const dx of [-.11, .11]) { ctx.beginPath(); ctx.arc(r + dx * S, r, S * .045, 0, Math.PI * 2); ctx.fillStyle = 'rgba(30,25,20,.75)'; ctx.fill(); }
+  }
+  ctx.beginPath(); ctx.arc(r, r, r - 1.5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+/* ---------- 연구실: 색실 작업대 ---------- */
+const beakers = document.getElementById('beakers');
+COLORS.forEach((c, i) => {
+  const b = document.createElement('div'); b.className = 'beaker' + (i ? '' : ' sel'); b.style.setProperty('--c', c);
+  b.onclick = () => { color = c; [...beakers.children].forEach(x => x.classList.remove('sel')); b.classList.add('sel'); };
+  beakers.appendChild(b);
+});
+const pad = document.getElementById('pad'), pctx = pad.getContext('2d');
+let PS = 300;
+function sizePad() {
+  const st = pad.parentElement.getBoundingClientRect();
+  PS = Math.floor(Math.min(st.width - 40, st.height - 20, 420));
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  pad.width = PS * dpr; pad.height = PS * dpr; pad.style.width = pad.style.height = PS + 'px';
+  pctx.setTransform(dpr, 0, 0, dpr, 0, 0); redraw();
+}
+function redraw() { drawButton(pctx, strokes, PS, { blank: true, holes: !!mine }); }
+let cur = null;
+const pos = e => { const r = pad.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, Math.round(performance.now() - t0)]; };
+pad.addEventListener('pointerdown', e => { if (mine) return; pad.setPointerCapture(e.pointerId); cur = { c: color, w: .035, p: [pos(e)] }; strokes.push(cur); redraw(); });
+pad.addEventListener('pointermove', e => { if (!cur) return; const q = pos(e), l = cur.p[cur.p.length - 1]; if (Math.hypot(q[0] - l[0], q[1] - l[1]) > .004) { cur.p.push(q); redraw(); } });
+const end = () => { cur = null; document.getElementById('bake').disabled = !strokes.length; };
+pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end);
+document.getElementById('undo').onclick = () => { if (mine) return; strokes.pop(); redraw(); end(); };
+document.getElementById('clear').onclick = () => { mine = null; strokes = []; pad.classList.remove('baked'); setCarry(); redraw(); end(); showDraw(true); };
+document.getElementById('bake').onclick = () => {
+  mine = { strokes: strokes.map(s => ({ c: s.c, w: s.w, p: s.p.map(q => [+q[0].toFixed(4), +q[1].toFixed(4), q[2]]) })), made: Date.now() };
+  try { sessionStorage.setItem('myButton', JSON.stringify(mine)); } catch (e) {}
+  redraw(); pad.classList.add('baked');
+  document.getElementById('hallHint').textContent = '단추가 구워졌어요. 이제 이 단추를 들고 다닐 수 있어요.';
+  setTimeout(() => { setCarry(); showDraw(false); }, 1200);
+};
+function showDraw(on) { document.getElementById('drawRow').style.display = on ? '' : 'none'; }
+
+const carry = document.getElementById('carry'), cctx = carry.getContext('2d');
+function setCarry() { carry.classList.toggle('on', !!mine && !mine.saved); if (mine) drawButton(cctx, mine.strokes, 116, { holes: true }); }
+
+/* ---------- 문: 단추가 있으면 바로, 없으면 물어보기 ---------- */
+const gate = document.getElementById('gate');
+document.getElementById('go').onclick = () => mine ? enterCanyon() : gate.classList.add('on');
+document.getElementById('gateNo').onclick = () => gate.classList.remove('on');
+document.getElementById('gateYes').onclick = () => { gate.classList.remove('on'); enterCanyon(); };
+document.getElementById('back').onclick = () => { swap('hall'); };
+function swap(id) { document.body.classList.toggle('inCanyon', id === 'canyon'); document.querySelectorAll('.room').forEach(r => r.classList.toggle('on', r.id === id)); if (id === 'hall') requestAnimationFrame(sizePad); }
+
+/* ---------- 협곡: 시험 천 ---------- */
+let rows = [];
+const statusEl = document.getElementById('status');
+async function load() {
+  statusEl.textContent = '천을 불러오는 중…';
+  const { data, error } = await sb.from('buttons').select('*').order('created_at', { ascending: true });
+  if (error) { statusEl.textContent = '불러오지 못했어요: ' + error.message; return; }
+  rows = data; statusEl.textContent = ''; render();
+}
+function render() {
+  document.getElementById('form').classList.toggle('on', !!(mine && !mine.saved));
+  const strip = document.getElementById('strip'), svg = document.getElementById('threads');
+  strip.querySelectorAll('.slot').forEach(n => n.remove());
+  const items = rows.map(r => ({ r, mine: false }));
+  if (mine && !mine.saved) items.push({ r: { nickname: '나의 단추', tag: '아직 달지 않았어요', drawing: mine.strokes }, pending: true });
+  const GAP = 130, W = Math.max(innerWidth, 90 + items.length * GAP);
+  strip.style.width = W + 'px';
+  let d = '', prevX = null;
+  const H = document.getElementById('cloth').clientHeight || 300, cy = H / 2 - 23;
+  strip.style.height = H + 'px';
+  items.forEach((it, i) => {
+    const x = 80 + i * GAP;
+    const el = document.createElement('div'); el.className = 'slot' + (it.pending ? ' mine' : '') + (it.r.id && it.r.id === (mine && mine.savedId) ? ' mine' : ''); el.style.left = x + 'px';
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128; drawButton(cv.getContext('2d'), it.r.drawing || [], 128, { holes: true });
+    if (it.pending) cv.style.opacity = .55;
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = it.r.nickname;
+    const tg = document.createElement('div'); tg.className = 'tg'; tg.textContent = it.r.tag || '';
+    el.append(cv, nm, tg); strip.appendChild(el);
+    // 실: 앞 단추가 '이어두기'였을 때만 다음 단추와 이어진다. '매듭짓기' 뒤에는 실이 끊기고 매듭 표시
+    const prev = i ? items[i - 1].r : null;
+    if (prev && prev.ending === 'continue') d += `M${prevX} ${cy} C${prevX + 40} ${cy + 46}, ${x - 40} ${cy + 46}, ${x} ${cy} `;
+    if (it.r.ending === 'knot') d += `M${x + 6} ${cy + 4} l10 14 m-4 -2 a4 4 0 1 0 .1 0 `;
+    if (it.r.ending === 'continue' && i === items.length - 1) d += `M${x} ${cy} C${x + 40} ${cy + 46}, ${x + 70} ${cy + 10}, ${x + 92} ${cy + 30} `;   // 다음 사람에게 남긴 실 끝
+    prevX = x;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="#e0283f" stroke-width="1.6" stroke-linecap="round"/>`;
+  document.getElementById('count').textContent = `달린 단추 ${rows.length}개`;
+  const cloth = document.getElementById('cloth'); cloth.scrollLeft = cloth.scrollWidth;
+  const last = rows[rows.length - 1];
+  document.getElementById('canyonLead').textContent = !mine ? '둘러보는 중이에요. 단추를 만들면 여기에 달 수 있어요.'
+    : mine.saved ? '천에 달렸어요. 다른 휴대폰에서 이 주소를 열면 보여요.'
+    : last && last.ending === 'continue' ? `${last.nickname}의 실 끝을 이어받아 내 단추를 달아요.`
+    : '앞사람이 매듭을 지었어요. 그 옆에서 새 실로 시작해요.';
+}
+async function save(ending) {
+  const nick = document.getElementById('nick').value.trim();
+  if (!nick) { statusEl.textContent = '닉네임을 먼저 적어 주세요.'; document.getElementById('nick').focus(); return; }
+  const last = rows[rows.length - 1];
+  const row = { nickname: nick, tag: document.getElementById('tag').value.trim() || null, drawing: mine.strokes, ending, prev_id: last && last.ending === 'continue' ? last.id : null };
+  document.getElementById('knot').disabled = document.getElementById('cont').disabled = true;
+  statusEl.textContent = '다는 중…';
+  const { data, error } = await sb.from('buttons').insert(row).select().single();
+  document.getElementById('knot').disabled = document.getElementById('cont').disabled = false;
+  if (error) { statusEl.textContent = '달지 못했어요. 다시 눌러 주세요. (' + error.message + ')'; return; }
+  mine.saved = true; mine.savedId = data.id; setCarry();
+  try { sessionStorage.setItem('myButton', JSON.stringify(mine)); } catch (e) {}
+  statusEl.textContent = ''; await load();
+}
+document.getElementById('knot').onclick = () => save('knot');
+document.getElementById('cont').onclick = () => save('continue');
+document.getElementById('reload').onclick = load;
+function enterCanyon() { swap('canyon'); setCarry(); load(); }
+
+/* ---------- 새로고침해도 들고 있던 단추 복원 ---------- */
+try { const m = JSON.parse(sessionStorage.getItem('myButton') || 'null'); if (m) { mine = m; strokes = m.strokes; pad.classList.add('baked'); showDraw(false); document.getElementById('hallHint').textContent = '들고 있던 단추예요.'; } } catch (e) {}
+addEventListener('resize', () => { sizePad(); if (document.getElementById('canyon').classList.contains('on')) render(); });
+sizePad(); setCarry();
+</script>
+</body>
+</html>
