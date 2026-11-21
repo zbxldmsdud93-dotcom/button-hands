@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>기억의 협곡 · 첫 장면 스케치</title>
+<style>
+  :root { --ink:#3b3548; --thread:#b8323a; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#efe6d6; font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif; color:var(--ink); }
+  canvas#c { display:block; width:100%; height:100%; touch-action:none; }
+  #title { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; pointer-events:none; opacity:0; transition:opacity 1.6s ease; }
+  #title b { font-size:clamp(26px,5vw,44px); font-weight:500; letter-spacing:.32em; padding-left:.32em; }
+  #title span { font-size:clamp(13px,2.2vw,16px); letter-spacing:.12em; color:#6d6580; }
+  #title.on { opacity:1; }
+  #hint { position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom)); transform:translateX(-50%); padding:9px 16px; border-radius:20px; background:rgba(251,246,234,.78); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); font-size:13px; color:#5b546a; white-space:nowrap; opacity:0; transition:opacity .8s ease; pointer-events:none; }
+  #hint.on { opacity:1; }
+  #carry { position:fixed; right:14px; top:calc(58px + env(safe-area-inset-top)); width:58px; height:58px; display:none; }
+  #carry.on { display:block; }
+  #carry::before { content:""; }
+  #back { position:fixed; left:14px; top:calc(14px + env(safe-area-inset-top)); min-height:40px; padding:0 14px; border-radius:20px; border:1px solid rgba(59,53,72,.25); background:rgba(251,246,234,.7); color:var(--ink); font:500 13px inherit; cursor:pointer; opacity:0; transition:opacity .8s; }
+  #back.on { opacity:1; }
+  #tag { position:fixed; right:14px; top:calc(14px + env(safe-area-inset-top)); font-size:11px; letter-spacing:.14em; color:#8a8297; }
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title"><b>기억의 협곡</b><span>누군가의 손이 이어갑니다.</span></div>
+<div id="hint">끌어서 둘러보기 · 바닥을 누르면 걷고, 옷을 누르면 다가가요</div>
+<button id="back" type="button">‹ 길로 돌아가기</button>
+<span id="tag">첫 장면 스케치 · 11/21</span>
+<canvas id="carry" width="116" height="116" title="들고 있는 단추"></canvas>
+<script type="module">
+import * as THREE from 'three';
+
+/* 11/21 협곡 첫 장면 스케치 — '막 도착한 순간'부터.
+   세계: 연구실(푸른 물속)과 정반대로 밝고 마른 곳. 거대한 광목천이 접혀 생긴 골짜기.
+   색: 따뜻한 아이보리 · 옅은 하늘 · 회보라 그림자 (GPT 아트디렉션 스펙).
+   여덟 벌은 11/11 실제 연결 순서대로 공중에 걸리고, 빨간 실 한 가닥이 그들을 잇는다. */
+
+const cv = document.getElementById('c');
+const R = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+R.outputColorSpace = THREE.SRGBColorSpace;
+R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.3;
+R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const IVORY = new THREE.Color('#efe6d6'), SKY = new THREE.Color('#cfe0ea'), VIOLET = new THREE.Color('#8e86a3');
+const S = new THREE.Scene();
+S.fog = new THREE.Fog(IVORY, 30, 125);
+const cam = new THREE.PerspectiveCamera(58, 1, 0.1, 400);
+
+/* 하늘: 위는 옅은 하늘, 지평선은 아이보리 */
+{
+  const g = new THREE.SphereGeometry(300, 32, 16);
+  const m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { a: { value: SKY }, b: { value: IVORY } },
+    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+    fragmentShader: 'uniform vec3 a,b; varying vec3 vP; void main(){ float h = clamp(normalize(vP).y*1.6, 0., 1.); gl_FragColor = vec4(mix(b,a,pow(h,.7)),1.); }' });
+  S.add(new THREE.Mesh(g, m));
+}
+
+/* 빛: 하늘빛이 위에서, 회보라가 그림자 쪽에서 */
+S.add(new THREE.HemisphereLight(SKY, '#b9b1c9', 1.9));
+const fill = new THREE.DirectionalLight('#e9e4f2', 0.55); fill.position.set(14, 12, -30); S.add(fill);
+const sun = new THREE.DirectionalLight('#fff4e2', 1.6);
+sun.position.set(-18, 40, 10); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 120 });
+sun.target.position.set(0, 0, -35); S.add(sun, sun.target);
+
+/* 광목천 결: 캔버스로 만든 가는 씨실·날실 + 얼룩 */
+function weave() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#f3ecdf'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 256; i += 2) {
+    x.fillStyle = `rgba(120,105,85,${0.035 + Math.random() * 0.04})`; x.fillRect(i, 0, 1, 256);
+    x.fillStyle = `rgba(120,105,85,${0.03 + Math.random() * 0.04})`; x.fillRect(0, i, 256, 1);
+  }
+  for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(110,95,80,${Math.random() * 0.05})`; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 3, 1); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+const WV = weave();
+
+/* 천 주름 벽: 양쪽에서 크게 접혀 올라가는 광목천. 위로 갈수록 바깥으로 벌어져 하늘이 열린다 */
+const LEN = 150, Z0 = 20;
+function foldWall(side) {
+  const W = 46, H = LEN, g = new THREE.PlaneGeometry(W, H, 70, 220);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const u = (p.getX(i) + W / 2) / W, z = Z0 - (p.getY(i) + H / 2);   // u: 0=골짜기 바닥 쪽, 1=꼭대기
+    const y = u * 34;
+    const lean = 7 + u * u * 17;                                      // 위로 갈수록 벌어짐
+    // 주름 능선은 위에서 아래로 흘러내린다: z 방향으로 촘촘한 주름 + 큰 물결, 위로 갈수록 깊게
+    const fold = Math.sin(z * 0.07 + side * 2.1) * (2.2 + u * 2.6) + Math.sin(z * 0.62 + side + Math.sin(u * 4 + z * 0.05) * 0.8) * (0.25 + u * 0.75) + Math.sin(z * 1.37 + u * 2.2) * 0.12 * (0.3 + u);
+    const sag = Math.sin(u * Math.PI) * Math.sin(z * 0.11 + side) * 0.9;
+    p.setXYZ(i, side * (lean + fold * 0.7 + sag), y + Math.sin(z * 0.21 + side) * 0.6 * u, z);
+  }
+  g.computeVertexNormals();
+  const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 8, uv.getY(i) * 26);
+  const m = new THREE.MeshStandardMaterial({ map: WV, color: '#efe5d3', roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
+  const me = new THREE.Mesh(g, m); me.castShadow = me.receiveShadow = true; return me;
+}
+S.add(foldWall(1), foldWall(-1));
+
+/* 바닥: 천이 느슨하게 깔린 골 — 걷는 길 */
+const floorG = new THREE.PlaneGeometry(20, LEN, 40, 200);
+{
+  const p = floorG.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = Z0 - (p.getY(i) + LEN / 2);
+    const edge = Math.pow(Math.abs(x) / 10, 2.4) * 2.2;
+    p.setXYZ(i, x, edge + Math.sin(x * 1.3 + z * 0.4) * 0.06 + Math.sin(z * 0.15) * 0.18, z);
+  }
+  floorG.computeVertexNormals();
+  const uv = floorG.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 3, uv.getY(i) * 26);
+}
+const floor = new THREE.Mesh(floorG, new THREE.MeshStandardMaterial({ map: WV, color: '#e8dcc6', roughness: 1 }));
+floor.receiveShadow = true; S.add(floor);
+
+/* 여덟 벌 — 11/11 실제 연결 순서 (연구실 수조 고리와 같은 CHAIN) */
+const CHAIN = ['A1', 'A2', 'A7', 'A3', 'A4', 'A5', 'A8', 'A6'];
+const PHOTO = { A1: ['img/cover8-A1.webp', 950 / 1600], A2: ['img/cover8-A2.webp', 1400 / 1006], A3: ['img/A3.webp', 1077 / 1600], A4: ['img/cover8-A4.webp', 1240 / 1600],
+  A5: ['img/cover8-A5.webp', 900 / 691], A6: ['img/cover8-A6.webp', 1400 / 1358], A7: ['img/cover8-A7.webp', 735 / 900], A8: ['img/cover8-A8.webp', 945 / 1600] };
+const TL = new THREE.TextureLoader();
+const G = [];   // { mesh, base, ph }
+CHAIN.forEach((id, k) => {
+  const [src, ar] = PHOTO[id];
+  const h = 4.2, w = Math.min(h * ar, 4.6), hh = w / ar;
+  const t = TL.load(src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide, toneMapped: false, fog: true }));
+  const z = -11 - k * 6.4, x = (k % 2 ? 1 : -1) * (1.6 + (k % 3) * 0.6), y = 6.4 + Math.sin(k * 1.7) * 1.2;
+  m.position.set(x, y, z); m.castShadow = true; m.userData.k = k;
+  // 그림자용 대역(사진 판은 빛을 받지 않으므로)
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.8, hh * 0.85), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  sh.castShadow = true; m.add(sh);
+  // 위로 올라가는 매단 실 (하늘 쪽으로 사라짐)
+  const up = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 40, 4), new THREE.MeshBasicMaterial({ color: '#9d93ad', transparent: true, opacity: 0.55 }));
+  up.position.set(0, hh / 2 + 20, 0); m.add(up);
+  S.add(m); G.push({ mesh: m, base: m.position.clone(), ph: k * 1.3, hh });
+});
+
+/* 빨간 실: 옷과 옷을 잇는 한 가닥 (첫 옷 앞은 길게 늘어져 관객 쪽으로) */
+const threadM = new THREE.MeshStandardMaterial({ color: '#b8323a', roughness: 0.7 });
+let thread = null;
+function buildThread() {
+  const pts = [new THREE.Vector3(0.4, 0.25, 4)];
+  G.forEach((g, k) => {
+    const p = g.mesh.position;
+    if (k) { const q = G[k - 1].mesh.position; pts.push(new THREE.Vector3((p.x + q.x) / 2, Math.min(p.y, q.y) - 2.2, (p.z + q.z) / 2)); }
+    else pts.push(new THREE.Vector3(p.x * 0.5, 2.5, p.z + 5));
+    pts.push(new THREE.Vector3(p.x, p.y - g.hh * 0.42, p.z));
+  });
+  const last = G[G.length - 1].mesh.position; pts.push(new THREE.Vector3(last.x * 0.3, 1.2, last.z - 9), new THREE.Vector3(0, 0.3, last.z - 22));
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 600, 0.02, 6, false);
+  if (thread) { thread.geometry.dispose(); thread.geometry = geo; } else { thread = new THREE.Mesh(geo, threadM); thread.castShadow = true; S.add(thread); }
+}
+buildThread();
+
+/* 떠다니는 보풀 — 마른 공기 */
+{
+  const N = 420, a = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { a[i * 3] = (Math.random() - 0.5) * 22; a[i * 3 + 1] = Math.random() * 18; a[i * 3 + 2] = 10 - Math.random() * 110; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(a, 3));
+  const lint = new THREE.Points(g, new THREE.PointsMaterial({ color: '#fffaf0', size: 0.07, transparent: true, opacity: 0.8 }));
+  lint.name = 'lint'; S.add(lint);
+}
+
+/* 들고 온 단추: 연구실(시험판)에서 만든 단추가 있으면 화면 귀퉁이로 돌아온다 */
+function drawButton(ctx, data, Sz) {
+  ctx.clearRect(0, 0, Sz, Sz); const r = Sz / 2; ctx.save();
+  ctx.beginPath(); ctx.arc(r, r, r - 1, 0, Math.PI * 2); ctx.fillStyle = '#fbf6ea'; ctx.fill(); ctx.clip();
+  for (const s of data) { if (!s.p.length) continue; const w = s.w * Sz; ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(s.p[0][0] * Sz, s.p[0][1] * Sz); for (const q of s.p) ctx.lineTo(q[0] * Sz, q[1] * Sz); ctx.strokeStyle = s.c; ctx.lineWidth = w; ctx.stroke(); }
+  ctx.restore();
+  for (const dx of [-.11, .11]) { ctx.beginPath(); ctx.arc(r + dx * Sz, r, Sz * .045, 0, Math.PI * 2); ctx.fillStyle = 'rgba(30,25,20,.75)'; ctx.fill(); }
+  ctx.beginPath(); ctx.arc(r, r, r - 1.5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2; ctx.stroke();
+}
+try { const m = JSON.parse(sessionStorage.getItem('myButton') || 'null'); if (m && m.strokes) { const c = document.getElementById('carry'); drawButton(c.getContext('2d'), m.strokes, 116); setTimeout(() => c.classList.add('on'), 5200); } } catch (e) {}
+
+/* 카메라: 도착 — 위에서 천 골짜기로 천천히 내려앉는다 */
+const P = { pos: new THREE.Vector3(0, 30, 22), yaw: 0, pitch: -0.62, target: null };
+const ARR = { t: 0, dur: 5.2, from: new THREE.Vector3(0, 30, 22), to: new THREE.Vector3(0, 3.4, 9), p0: -0.62, p1: 0.05, done: false };
+const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const $ = (id) => document.getElementById(id);
+setTimeout(() => $('title').classList.add('on'), 900);
+setTimeout(() => $('title').classList.remove('on'), 4600);
+
+/* 조작: 끌면 둘러보기 · 바닥 누르면 걷기 · 옷 누르면 다가가기 */
+const ray = new THREE.Raycaster(), nd = new THREE.Vector2();
+let drag = null;
+cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, yaw: P.yaw, pitch: P.pitch, moved: 0 }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (!drag || !ARR.done) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+  P.yaw = drag.yaw + dx * 0.004; P.pitch = THREE.MathUtils.clamp(drag.pitch + dy * 0.003, -0.9, 0.9); });
+cv.addEventListener('pointerup', (e) => { const d = drag; drag = null; if (!d || d.moved > 8 || !ARR.done) return;
+  nd.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(nd, cam);
+  const hg = ray.intersectObjects(G.map((g) => g.mesh), false)[0];
+  if (hg) { const g = G[hg.object.userData.k], p = g.mesh.position; P.target = { pos: new THREE.Vector3(p.x * 0.4, Math.max(2.4, p.y - 1.2), p.z + 5.4), look: p.clone() }; $('back').classList.add('on'); return; }
+  const hf = ray.intersectObject(floor)[0];
+  if (hf) { const q = hf.point; P.target = { pos: new THREE.Vector3(THREE.MathUtils.clamp(q.x, -3.5, 3.5), 3.2, THREE.MathUtils.clamp(q.z + 2.5, -80, 12)) }; }
+});
+$('back').onclick = () => { P.target = { pos: new THREE.Vector3(0, 3.2, P.pos.z + 4) }; $('back').classList.remove('on'); };
+
+/* 크기 */
+function size() { R.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.fov = cam.aspect < 1 ? 70 : 58; cam.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+
+const clk = new THREE.Clock(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
+function frame() {
+  const raw = clk.getDelta(), dt = Math.min(raw, 0.05), T = clk.elapsedTime;
+  if (!ARR.done) {
+    ARR.t += Math.min(raw, 0.5);   // 도착 연출은 실제 시간 기준 (느린 폰에서도 5초 안팎)
+    const u = ease(Math.min(1, ARR.t / ARR.dur));
+    P.pos.lerpVectors(ARR.from, ARR.to, u); P.pitch = THREE.MathUtils.lerp(ARR.p0, ARR.p1, u);
+    if (ARR.t >= ARR.dur) { ARR.done = true; $('hint').classList.add('on'); setTimeout(() => $('hint').classList.remove('on'), 6000); }
+  } else if (P.target) {
+    P.pos.lerp(P.target.pos, 1 - Math.pow(0.04, dt));
+    if (P.target.look) { tmp.subVectors(P.target.look, P.pos); const ty = Math.atan2(-tmp.x, -tmp.z), tp = Math.atan2(tmp.y, Math.hypot(tmp.x, tmp.z));
+      P.yaw += (ty - P.yaw) * (1 - Math.pow(0.03, dt)); P.pitch += (tp - P.pitch) * (1 - Math.pow(0.03, dt)); }
+    if (P.pos.distanceTo(P.target.pos) < 0.05) P.target = P.target.look ? P.target : null;
+  }
+  cam.position.copy(P.pos);
+  look.set(P.pos.x - Math.sin(P.yaw) * Math.cos(P.pitch), P.pos.y + Math.sin(P.pitch), P.pos.z - Math.cos(P.yaw) * Math.cos(P.pitch));
+  cam.lookAt(look);
+  // 옷은 천천히 흔들리고, 늘 관객 쪽으로 몸을 돌린다
+  G.forEach((g) => { const m = g.mesh; m.position.y = g.base.y + Math.sin(T * 0.6 + g.ph) * 0.12; m.position.x = g.base.x + Math.sin(T * 0.35 + g.ph) * 0.08;
+    m.rotation.y = Math.atan2(cam.position.x - m.position.x, cam.position.z - m.position.z) * 0.85 + Math.sin(T * 0.4 + g.ph) * 0.05; });
+  const lint = S.getObjectByName('lint'); lint.position.y = Math.sin(T * 0.2) * 0.3; lint.rotation.y = T * 0.004;
+  R.render(S, cam); requestAnimationFrame(frame);
+}
+frame();
+window.__cy = { P, ARR, skip() { ARR.t = ARR.dur; } };
+</script>
+</body>
+</html>
